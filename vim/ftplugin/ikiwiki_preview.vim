@@ -1,0 +1,1 @@
+call ikiwiki#preview#enable()
