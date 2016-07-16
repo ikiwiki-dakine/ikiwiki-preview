@@ -17,6 +17,7 @@ function! ikiwiki#preview#update()
 	" TODO
 	let msg = {}
 	let msg.text = getline(0, '$')
+	let msg.filename = fnamemodify(expand('%'), ':p')
 	let msg.ext = &filetype
 	let msg.event = 'update'
 	call s:send_by_channel( msg )
