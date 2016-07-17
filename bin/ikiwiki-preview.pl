@@ -115,6 +115,8 @@ sub send_update_to_clients {
 			->find('span.parentlinks')
 			->first
 			->remove->root->to_string;
+	} elsif ( $type eq 'html' ) {
+		$render_html = $text;
 	} else {
 		my $escaped_html = xml_escape $text;
 		$render_html = "<pre><code class='$type'>$escaped_html</code></pre>";
