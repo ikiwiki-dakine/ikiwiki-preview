@@ -11,6 +11,7 @@ use Mojo::DOM;
 use Text::Markdown;
 use Path::Tiny;
 use Encode qw(decode_utf8);
+use File::chdir;
 
 my $vim_port = 20345;
 my $http_port = 20346;
@@ -88,8 +89,10 @@ sub send_update_to_clients {
 	);
 	#my $sentinel_left = "\x{FFFF}";
 	#my $sentinel_right = "\x{1FFFF}";
-	my $sentinel_left = "\x{FFF0}";
-	my $sentinel_right = "\x{1FFF0}";
+	#my $sentinel_left = "\x{FFF0}";
+	#my $sentinel_right = "\x{1FFF0}";
+	my $sentinel_left = "STARTOFCURSOR";
+	my $sentinel_right = "ENDOFCURSOR";
 	my $text = join "\n", map {
 		my $current_line = $_ + 1;
 		if( defined $cursor_pos[0] && $cursor_pos[0] == $current_line ) {
@@ -105,16 +108,61 @@ sub send_update_to_clients {
 	if ( $type eq 'markdown' ) {
 		$render_html = Text::Markdown::markdown( $text );
 	} elsif ( $type eq 'ikiwiki' ) {
-		my $orig_file = path( $vim_buffer_data->{filename} );
+		my $orig_file = path( $vim_buffer_data->{filename} )->absolute;
 		my $tempdir = Path::Tiny->tempdir;
 		my $tempfile = $tempdir->child( $orig_file->basename );
 		$tempfile->spew_utf8( $text );
-		$render_html = `ikiwiki --setup ~/sw_projects/wiki/notebook/notebook.help/notebook.setup --render $tempfile`;
+		my $setup_file = '~/sw_projects/wiki/notebook/notebook.help/notebook.setup';
+		my $top_of_wiki = path('~')->absolute;
+		my $path_to_setup = {
+			'~/sw_projects/wiki/notebook/notebook'
+				=> '~/sw_projects/wiki/notebook/notebook.help/notebook.setup',
+			'~/sw_projects/wiki/zmughal/zmughal'
+				=> '~/sw_projects/wiki/zmughal/zmughal.help/zmughal.setup',
+			'~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io'
+				=> '~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io/project-renard.setup',
+		};
+
+		SETUP:
+		for my $path (keys %$path_to_setup) {
+			my $expand_path = path($path)->absolute;
+			if( $orig_file =~ /\Q$expand_path\E/ ) {
+				$setup_file = $path_to_setup->{$path};
+				$top_of_wiki = $expand_path;
+				last SETUP;
+			}
+		}
+		use DDP; p $setup_file;
+		{
+			local $CWD = $top_of_wiki;
+			$render_html = `ikiwiki --url 'http://localhost/' --setup $setup_file --set srcdir=$CWD --render $tempfile`;
+		}
 		$render_html = decode_utf8( $render_html );
 		$render_html = Mojo::DOM->new( $render_html )
 			->find('span.parentlinks')
 			->first
 			->remove->root->to_string;
+	} elsif( $type eq 'tex' ) {
+		my $orig_file = path( $vim_buffer_data->{filename} )->absolute;
+		my $tempdir = Path::Tiny->tempdir;
+		my $tempfile = $tempdir->child( $orig_file->basename );
+		$tempfile->spew_utf8( $text );
+
+		my $texname = $tempfile->basename('.tex');
+
+		my $pagedir = $orig_file->parent;
+		$ENV{TEXINPUTS}    = ".:" . $pagedir.':'.$ENV{TEXINPUTS};
+		$ENV{TEX4HTINPUTS} = ".:" . $pagedir.':'.$ENV{TEXINPUTS};
+		$ENV{BIBINPUTS}    = ".:" . $pagedir.':'.$ENV{BIBINPUTS};
+
+		{
+			local $CWD = $tempdir;
+			system(qw(htlatex),$texname);
+			system(qw(bibtex), $texname);
+			system(qw(htlatex),$texname);
+		}
+
+		$render_html = $tempdir->child( "$texname.html" )->slurp_utf8;
 	} elsif ( $type eq 'html' ) {
 		$render_html = $text;
 	} else {
