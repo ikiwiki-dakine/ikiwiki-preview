@@ -12,6 +12,8 @@ use Text::Markdown;
 use Path::Tiny;
 use Encode qw(decode_utf8);
 use File::chdir;
+use URI::Find::UTF8;
+use URI::Escape;
 
 my $vim_port = 20345;
 my $http_port = 20346;
@@ -87,6 +89,7 @@ sub send_update_to_clients {
 		$vim_cursor_data->{cursor_position}[1], # line number
 		$vim_cursor_data->{cursor_position}[2]  # column
 	);
+	my $cursor_line;
 	#my $sentinel_left = "\x{FFFF}";
 	#my $sentinel_right = "\x{1FFFF}";
 	#my $sentinel_left = "\x{FFF0}";
@@ -97,12 +100,35 @@ sub send_update_to_clients {
 		my $current_line = $_ + 1;
 		if( defined $cursor_pos[0] && $cursor_pos[0] == $current_line ) {
 			my $count_chars_before = $cursor_pos[1]-1;
+			$cursor_line = $lines[$_];
 			$lines[$_] =~ s/(.{$count_chars_before})(.?)/$1$sentinel_left@{[ $2 || ' ' ]}$sentinel_right/r;
 		} else {
 			$lines[$_]
 		}
 	} 0..@lines-1;
 	my $type = $vim_buffer_data->{ext};
+
+	my $cursor_line_uri_pos = 0;
+	my $cursor_uri;
+	my $uri_cb = sub {
+		my ($uri, $orig_uri) = @_;
+		my $end_uri_pos = $cursor_line_uri_pos + length $orig_uri;
+		if( $cursor_pos[1] > $cursor_line_uri_pos && $cursor_pos[1] <= $end_uri_pos ) {
+			$cursor_uri = $uri;
+			say "Found URI: $uri";
+		}
+		$cursor_line_uri_pos = $end_uri_pos;
+		return $orig_uri;
+	};
+	my $other_cb = sub {
+		my ($text) = @_;
+		$cursor_line_uri_pos += length $text;
+	};
+
+	my $finder = URI::Find::UTF8->new( $uri_cb );
+	if( defined $cursor_pos[0] ) {
+		$finder->find(\$cursor_line, $other_cb);
+	}
 
 	my $render_html;
 	if ( $type eq 'markdown' ) {
@@ -178,7 +204,8 @@ sub send_update_to_clients {
 	for (keys %$clients) {
 		$clients->{$_}->send({json => {
 			text =>  $render_html,
-			cursor => $vim_cursor_data->{cursor_position}
+			cursor => $vim_cursor_data->{cursor_position},
+			cursor_uri => $cursor_uri,
 		}});
 	}
 }
@@ -279,6 +306,12 @@ __DATA__
 <div id="content">
 empty
 </div>
+<div id="uri-frame" style="visibility: hidden">
+	<!-- sandbox does not contain `allow-popups` so that user does not have to interact -->
+	<iframe id="uri-frame-iframe"
+		sandbox="allow-same-origin allow-scripts allow-forms"
+		src="about:blank" style="height: 100%; width: 100%"></iframe>
+</div>
 
 </body>
 </html>
@@ -302,6 +335,16 @@ $(document).one('ready', function () {
 
   ws.onmessage = function (msg) {
     var res = JSON.parse(msg.data);
+    if( res.cursor_uri && $('#uri-frame').attr('src') != res.cursor_uri ) {
+       $('#uri-frame-iframe').attr('src', 'about:blank' ); // first clear it
+       $('#uri-frame-iframe').attr('src', res.cursor_uri );
+       $('#uri-frame').attr('style', "position: fixed; left: 51%; right: 0; height: 100%");
+       $('#content').attr('style', 'position: absolute; width: 50%;');
+    } else {
+       $('#content').attr('style', '');
+       $('#uri-frame').attr('style', 'visibility: hidden');
+    }
+
     log( res.text );
   };
 });
