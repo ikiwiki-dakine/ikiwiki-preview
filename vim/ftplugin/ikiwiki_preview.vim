@@ -1,1 +1,1 @@
-call ikiwiki#preview#enable()
+"call ikiwiki#preview#enable()
