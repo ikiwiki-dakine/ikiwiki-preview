@@ -24,6 +24,8 @@ my $vim_buffer_data;
 my $vim_cursor_data;
 
 my $clients = {};
+my $tempdir;
+my $output_dir;
 
 my $loop = IO::Async::Loop::Mojo->new();
 
@@ -135,26 +137,37 @@ sub send_update_to_clients {
 		$render_html = Text::Markdown::markdown( $text );
 	} elsif ( $type eq 'ikiwiki' ) {
 		my $orig_file = path( $vim_buffer_data->{filename} )->absolute;
-		my $tempdir = Path::Tiny->tempdir;
+		$tempdir = Path::Tiny->tempdir;
 		my $tempfile = $tempdir->child( $orig_file->basename );
 		$tempfile->spew_utf8( $text );
 		my $setup_file = '~/sw_projects/wiki/notebook/notebook.help/notebook.setup';
 		my $top_of_wiki = path('~')->absolute;
+		$output_dir = path('~')->absolute;
 		my $path_to_setup = {
 			'~/sw_projects/wiki/notebook/notebook'
-				=> '~/sw_projects/wiki/notebook/notebook.help/notebook.setup',
+				=> {
+					setup_file => '~/sw_projects/wiki/notebook/notebook.help/notebook.setup',
+					output => '~/public_html/notebook',
+				},
 			'~/sw_projects/wiki/zmughal/zmughal'
-				=> '~/sw_projects/wiki/zmughal/zmughal.help/zmughal.setup',
+				=> {
+					setup_file => '~/sw_projects/wiki/zmughal/zmughal.help/zmughal.setup',
+					output => '~/public_html/zmughal',
+				},
 			'~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io'
-				=> '~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io/project-renard.setup',
+				=> {
+					setup_file => '~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io/project-renard.setup',
+					output => '~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io/_site',
+				},
 		};
 
 		SETUP:
 		for my $path (keys %$path_to_setup) {
 			my $expand_path = path($path)->absolute;
 			if( $orig_file =~ /\Q$expand_path\E/ ) {
-				$setup_file = $path_to_setup->{$path};
+				$setup_file = $path_to_setup->{$path}{setup_file};
 				$top_of_wiki = $expand_path;
+				$output_dir = path($path_to_setup->{$path}{output});
 				last SETUP;
 			}
 		}
@@ -163,6 +176,8 @@ sub send_update_to_clients {
 			local $CWD = $top_of_wiki;
 			$render_html = `ikiwiki --url 'http://localhost/' --setup $setup_file --set srcdir=$CWD --render $tempfile`;
 		}
+		# ick... need to go under the output dir
+		$tempdir = $output_dir->child($tempdir->relative('/')->stringify);
 		$render_html = decode_utf8( $render_html );
 		$render_html = Mojo::DOM->new( $render_html )
 			->find('span.parentlinks')
@@ -170,7 +185,7 @@ sub send_update_to_clients {
 			->remove->root->to_string;
 	} elsif( $type eq 'tex' ) {
 		my $orig_file = path( $vim_buffer_data->{filename} )->absolute;
-		my $tempdir = Path::Tiny->tempdir;
+		$tempdir = Path::Tiny->tempdir;
 		my $tempfile = $tempdir->child( $orig_file->basename );
 		$tempfile->spew_utf8( $text );
 
@@ -232,10 +247,26 @@ websocket '/update' => sub {
 	});
 };
 
+get '/*any' => sub {
+	my $c = shift;
+	my $any = $c->param('any');
+	my $t_loc = $tempdir->child($any);
+	my $o_loc = $output_dir->child($any);
+	if( -f $t_loc ) {
+		$c->reply->static( "$t_loc" );
+	} elsif( -f $o_loc ) {
+		$c->reply->static( "$o_loc" );
+	} else {
+		$c->render(text => "/$any did not match.", status => 404);
+	}
+};
+
 
 app->config(
 	hypnotoad => {listen => ["http://*:$http_port"]},
 );
+
+push @{app->static->paths}, '/';
 
 app->start;
 __DATA__
