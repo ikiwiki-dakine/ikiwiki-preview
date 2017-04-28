@@ -1,0 +1,15 @@
+requires 'DDP';
+requires 'Encode';
+requires 'File::chdir';
+requires 'IO::Async::Listener';
+requires 'IO::Async::Loop::Mojo';
+requires 'JSON::MaybeXS';
+requires 'Log::Any';
+requires 'Modern::Perl';
+requires 'Mojo::DOM';
+requires 'Mojo::Util';
+requires 'Mojolicious::Lite';
+requires 'Path::Tiny';
+requires 'Text::Markdown';
+requires 'URI::Escape';
+requires 'URI::Find::UTF8';
