@@ -13,6 +13,7 @@ use Path::Tiny;
 use Encode qw(decode_utf8);
 use File::chdir;
 use URI::Find::UTF8;
+use Try::Tiny;
 use URI::Escape;
 
 my $vim_port = 20345;
@@ -127,10 +128,14 @@ sub send_update_to_clients {
 		$cursor_line_uri_pos += length $text;
 	};
 
-	my $finder = URI::Find::UTF8->new( $uri_cb );
-	if( defined $cursor_pos[0] ) {
-		$finder->find(\$cursor_line, $other_cb);
-	}
+	try {
+		my $finder = URI::Find::UTF8->new( $uri_cb );
+		if( defined $cursor_pos[0] ) {
+			$finder->find(\$cursor_line, $other_cb);
+		}
+	} catch {
+		warn "URI under cursor failure: $_";
+	};
 
 	my $render_html;
 	if ( $type eq 'markdown' ) {
