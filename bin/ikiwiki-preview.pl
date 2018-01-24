@@ -385,7 +385,11 @@ empty
 @@ ws.js.ep
 $(document).one('ready', function () {
   var log = function (text) {
-    $('#content').html( text );
+    try {
+       $('#content').html( text );
+    } catch( error ) {
+       console.log("Error when setting the HTML: " + error );
+    }
     $('pre code').each(function(i, block) {
       hljs.highlightBlock(block);
     });
