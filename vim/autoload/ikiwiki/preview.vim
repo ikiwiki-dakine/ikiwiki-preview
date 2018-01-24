@@ -57,3 +57,23 @@ function! ikiwiki#preview#disable() abort
 	augroup END
 	call s:stop_server()
 endfunction
+
+function! ikiwiki#preview#enable_lite() abort
+	augroup ikiwiki_preview
+		autocmd!
+		autocmd BufWrite * call ikiwiki#preview#update()
+		autocmd BufEnter * call ikiwiki#preview#update()
+		autocmd VimLeave * call s:stop_server()
+	augroup END
+	call s:start_server()
+endfunction
+
+function! ikiwiki#preview#enable_lite_scroll() abort
+	augroup ikiwiki_preview
+		autocmd!
+		autocmd BufWrite * call ikiwiki#preview#update()
+		autocmd BufWrite * call ikiwiki#preview#move_cursor()
+		autocmd VimLeave * call s:stop_server()
+	augroup END
+	call s:start_server()
+endfunction
