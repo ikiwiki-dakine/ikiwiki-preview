@@ -203,6 +203,7 @@ sub send_update_to_clients {
 	} elsif( $type eq 'tex' ) {
 		my $orig_file = path( $vim_buffer_data->{filename} )->absolute;
 		$tempdir = Path::Tiny->tempdir;
+		$output_dir = $tempdir;
 		my $tempfile = $tempdir->child( $orig_file->basename );
 		$tempfile->spew_utf8( $text );
 
@@ -212,12 +213,13 @@ sub send_update_to_clients {
 		$ENV{TEXINPUTS}    = ".:" . $pagedir.':'.$ENV{TEXINPUTS};
 		$ENV{TEX4HTINPUTS} = ".:" . $pagedir.':'.$ENV{TEXINPUTS};
 		$ENV{BIBINPUTS}    = ".:" . $pagedir.':'.$ENV{BIBINPUTS};
+		my @htlatex_args = ("xhtml, mathml, charset=utf-8", " -cunihtf -utf8");
 
 		{
 			local $CWD = $tempdir;
-			system(qw(htlatex),$texname);
+			system(qw(htlatex),$texname,@htlatex_args);
 			system(qw(bibtex), $texname);
-			system(qw(htlatex),$texname);
+			system(qw(htlatex),$texname,@htlatex_args);
 		}
 
 		$render_html = $tempdir->child( "$texname.html" )->slurp_utf8;
