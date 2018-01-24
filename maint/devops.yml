@@ -1,0 +1,8 @@
+native:
+  debian:
+    packages:
+      - tex4ht
+  macos-homebrew:
+    packages: ~
+  msys2-mingw64:
+    packages: ~
