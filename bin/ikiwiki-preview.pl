@@ -164,6 +164,11 @@ sub send_update_to_clients {
 					setup_file => '~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io/project-renard.setup',
 					output => '~/sw_projects/project-renard/project-renard.github.io/project-renard.github.io/_site',
 				},
+			'~/sw_projects/wiki/medicine/medicine'
+				=> {
+					setup_file => '~/sw_projects/wiki/medicine/medicine.help/medicine.setup',
+					output => '~/public_html/medicine',
+				},
 		};
 
 		SETUP:
