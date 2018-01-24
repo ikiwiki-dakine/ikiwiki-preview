@@ -184,7 +184,14 @@ sub send_update_to_clients {
 		use DDP; p $setup_file;
 		{
 			local $CWD = $top_of_wiki;
-			$render_html = `ikiwiki --url 'http://localhost/' --setup $setup_file --set srcdir=$CWD --render $tempfile`;
+			my $basename = $orig_file->basename(qw(.mdwn .tex));
+			my $preview_path;
+			if( $basename eq 'index' ) {
+				$preview_path = $orig_file->relative($top_of_wiki)->parent;
+			} else {
+				$preview_path = $orig_file->relative($top_of_wiki)->parent->child($basename);
+			}
+			$render_html = `ikiwiki --url 'http://localhost/' --setup $setup_file --set srcdir=$CWD --render $tempfile --set preview_path="$preview_path"`;
 		}
 		# ick... need to go under the output dir
 		$tempdir = $output_dir->child($tempdir->relative('/')->stringify);
