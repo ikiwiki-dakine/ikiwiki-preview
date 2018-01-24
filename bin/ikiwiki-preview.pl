@@ -271,11 +271,28 @@ get '/*any' => sub {
 	my $any = $c->param('any');
 	my $t_loc = $tempdir->child($any);
 	my $o_loc = $output_dir->child($any);
-	if( -f $t_loc ) {
-		$c->reply->static( "$t_loc" );
-	} elsif( -f $o_loc ) {
-		$c->reply->static( "$o_loc" );
-	} else {
+	my @locs = ($t_loc, $o_loc);
+
+	$tempdir->visit( sub {
+			my ($path, $state) = @_;
+			return unless -d $path;
+			my $test = $path->child($any);
+			push @locs, $test if -f $test;
+		},
+		{ recurse => 1 },
+	);
+
+	my $found = 0;
+
+	for my $loc (@locs) {
+		if( -f $loc ) {
+			$c->reply->static( "$loc" );
+			$found = 1;
+			last;
+		}
+	}
+
+	if( ! $found ) {
 		$c->render(text => "/$any did not match.", status => 404);
 	}
 };
