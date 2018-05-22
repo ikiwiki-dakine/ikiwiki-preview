@@ -37,6 +37,10 @@ function! s:start_server()
 endfunction
 
 function! s:stop_server()
+	call ikiwiki#preview#clear_cursor()
+endfunction
+
+function! ikiwiki#preview#clear_cursor()
 	let msg = {}
 	let msg.line = v:null
 	let msg.cursor_position = v:null
