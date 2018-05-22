@@ -37,7 +37,11 @@ function! s:start_server()
 endfunction
 
 function! s:stop_server()
-" TODO
+	let msg = {}
+	let msg.line = v:null
+	let msg.cursor_position = v:null
+	let msg.event = 'move'
+	call s:send_by_channel(msg)
 endfunction
 
 function! ikiwiki#preview#enable() abort
