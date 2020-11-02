@@ -224,7 +224,7 @@ sub send_update_to_clients {
 
 		$render_html = $tempdir->child( "$texname.html" )->slurp_utf8;
 	} elsif ( $type eq 'html' ) {
-		$render_html = $text;
+		$render_html = "<frame>$text</frame>";
 	} else {
 		my $escaped_html = xml_escape $text;
 		$render_html = "<pre><code class='$type'>$escaped_html</code></pre>";
