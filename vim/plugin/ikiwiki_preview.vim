@@ -1,4 +1,4 @@
-let g:ikiwiki_preview_bin = expand('~/sw_projects/ikiwiki-tavi/ikiwiki-preview/ikiwiki-preview/bin/ikiwiki-preview.pl')
+let g:ikiwiki_preview_bin = expand('~/sw_projects/ikiwiki-dakine/ikiwiki-preview/ikiwiki-preview/bin/ikiwiki-preview.pl')
 let g:ikiwiki_preview_vim_port = 20345
 
 command! -nargs=0 IkiwikiPreviewEnable call ikiwiki#preview#enable()
